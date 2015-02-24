@@ -201,6 +201,9 @@ typedef struct uvc_device_info {
   uvc_control_interface_t ctrl_if;
   /** VideoStreaming interfaces on the device */
   uvc_streaming_interface_t *stream_ifs;
+
+  /* Store the interface for multiple UVCs on a single VID/PID device (Intel RealSense, VF200, e.g) */
+  int camera_number;
 } uvc_device_info_t;
 
 /*

@@ -74,10 +74,11 @@ int main(int argc, char **argv) {
 
   puts("UVC initialized");
 
+
   /* Locates the first attached UVC device, stores in dev */
   res = uvc_find_device(
       ctx, &dev,
-      0, 0, NULL); /* filter devices: vendor_id, product_id, "serial_num" */
+      0x8086, 0x0a66, NULL); /* filter devices: vendor_id, product_id, "serial_num" */
 
   if (res < 0) {
     uvc_perror(res, "uvc_find_device"); /* no devices found */
@@ -85,7 +86,8 @@ int main(int argc, char **argv) {
     puts("Device found");
 
     /* Try to open the device: requires exclusive access */
-    res = uvc_open(dev, &devh);
+    res = uvc_open(dev, &devh, 1); //Try to open camera 2 (depth)
+
 
     if (res < 0) {
       uvc_perror(res, "uvc_open"); /* unable to open device */
@@ -112,6 +114,8 @@ int main(int argc, char **argv) {
         /* Start the video stream. The library will call user function cb:
          *   cb(frame, (void*) 12345)
          */
+	
+
         res = uvc_start_streaming(devh, &ctrl, cb, 12345, 0);
 
         if (res < 0) {
@@ -125,6 +129,8 @@ int main(int argc, char **argv) {
 
           /* End the stream. Blocks until last callback is serviced */
           uvc_stop_streaming(devh);
+
+
           puts("Done streaming.");
         }
       }
