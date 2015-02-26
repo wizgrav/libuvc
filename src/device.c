@@ -42,7 +42,8 @@
 int uvc_already_open(uvc_context_t *ctx, struct libusb_device *usb_dev);
 void uvc_free_devh(uvc_device_handle_t *devh);
 
-uvc_error_t uvc_get_device_info(uvc_device_t *dev, uvc_device_info_t **info, int camera_number);
+uvc_error_t uvc_get_device_info(uvc_device_t *dev, uvc_device_info_t **info);
+uvc_error_t uvc_get_device_info2(uvc_device_t *dev, uvc_device_info_t **info, int camera_number);
 void uvc_free_device_info(uvc_device_info_t *info);
 
 uvc_error_t uvc_scan_control(uvc_device_t *dev, uvc_device_info_t *info);
@@ -187,14 +188,31 @@ uint8_t uvc_get_device_address(uvc_device_t *dev) {
   return libusb_get_device_address(dev->usb_dev);
 }
 
-/** @brief Open a UVC device
+
+/** @brief Open a UVC device, defaulting to the first interface found
  * @ingroup device
  *
  * @param dev Device to open
  * @param[out] devh Handle on opened device
  * @return Error opening device or SUCCESS
  */
+
 uvc_error_t uvc_open(
+    uvc_device_t *dev,
+    uvc_device_handle_t **devh) {
+  return uvc_open2(dev, devh, 0);
+}
+
+/** @brief Open a UVC device, specifying the camera number, zero-based
+ * @ingroup device
+ *
+ * @param dev Device to open
+ * @param [out] devh Handle on opened device
+ * @param camera_number Camera to open
+ * @return Error opening device or SUCCESS
+ */
+
+uvc_error_t uvc_open2(
     uvc_device_t *dev,
     uvc_device_handle_t **devh,
     int camera_number) {
@@ -219,7 +237,7 @@ uvc_error_t uvc_open(
   internal_devh->dev = dev;
   internal_devh->usb_devh = usb_devh;
 
-  ret = uvc_get_device_info(dev, &(internal_devh->info), camera_number);
+  ret = uvc_get_device_info2(dev, &(internal_devh->info), camera_number);
 
   if (ret != UVC_SUCCESS)
     goto fail;
@@ -284,14 +302,31 @@ uvc_error_t uvc_open(
 
 /**
  * @internal
+ * @brief Parses the complete device descriptor for a device. Defaults to using the first camera interface found on a device.
+ * @ingroup device
+ * @note Free *info with uvc_free_device_info when you're done
+ *
+ * @param dev Device to parse descriptor for
+ * @param info Where to store a pointer to the new info struct
+ * 
+ */
+uvc_error_t uvc_get_device_info(uvc_device_t *dev,
+				uvc_device_info_t **info) {
+  return uvc_get_device_info2(dev, info, 0);
+}
+
+/**
+ * @internal
  * @brief Parses the complete device descriptor for a device
  * @ingroup device
  * @note Free *info with uvc_free_device_info when you're done
  *
  * @param dev Device to parse descriptor for
  * @param info Where to store a pointer to the new info struct
+ * @param camera_number Index of the camera to open, 0-based
  */
-uvc_error_t uvc_get_device_info(uvc_device_t *dev,
+
+uvc_error_t uvc_get_device_info2(uvc_device_t *dev,
 				uvc_device_info_t **info,
 				int camera_number) {
   uvc_error_t ret;

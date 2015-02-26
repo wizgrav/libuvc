@@ -69,6 +69,7 @@ enum uvc_frame_format {
   /** Motion-JPEG (or JPEG) encoded images */
   UVC_FRAME_FORMAT_MJPEG,
   UVC_FRAME_FORMAT_GRAY8,
+  UVC_FRAME_FORMAT_GRAY16,
   UVC_FRAME_FORMAT_BY8,
   /** Number of formats understood */
   UVC_FRAME_FORMAT_COUNT,
@@ -476,6 +477,10 @@ uvc_error_t uvc_find_device(
     int vid, int pid, const char *sn);
 
 uvc_error_t uvc_open(
+    uvc_device_t *dev,
+    uvc_device_handle_t **devh);
+
+uvc_error_t uvc_open2(
     uvc_device_t *dev,
     uvc_device_handle_t **devh,
     int camera_number);
