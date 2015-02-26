@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <cv.h>
 #include <highgui.h>
+#include <stdint.h>
 
 /* This callback function runs once per frame. Use it to perform any
  * quick processing you need, or have it put the frame into your application's
@@ -93,6 +94,35 @@ void cb_gray(uvc_frame_t *frame, void *ptr) {
     cvReleaseImageHeader(&cvImg);
 }
 
+int depthCount=0;
+ 
+//Callback for the 16-bit gray depthmap - image writer
+void cb_gray_file(uvc_frame_t *frame, void *ptr) {
+  uvc_frame_t *gray;
+  uvc_error_t ret;
+  int i,j;
+
+  gray = frame;
+
+  gray->frame_format = UVC_FRAME_FORMAT_GRAY16;
+
+  char fileName[32];
+  sprintf(fileName, "image%d.pgm", depthCount++);
+  FILE* outFile = fopen(fileName, "w");
+  fprintf(outFile, "P2\n640 480\n65535\n");
+  uint16_t *data = (uint16_t*)gray->data;
+
+  for (i =0; i<gray->height; i++)
+    {
+      for (j=0; j<gray->width; j++)
+	fprintf(outFile, "%d ", data[i*gray->width + j]);
+      fprintf(outFile, "\n");
+    }
+
+  fclose(outFile);
+}
+
+
 int main(int argc, char **argv) {
   uvc_context_t *ctx;
   uvc_device_t *dev;
@@ -175,7 +205,7 @@ int main(int argc, char **argv) {
         res = uvc_start_streaming(devh_rgb, &ctrl_rgb, cb_rgb, 12345, 0);
 
 
-	res = uvc_start_streaming(devh_d, &ctrl_d, cb_gray, 12345, 0);
+	res = uvc_start_streaming(devh_d, &ctrl_d, cb_gray_file, 12345, 0);
 
         if (res < 0) {
           uvc_perror(res, "start_streaming"); /* unable to start stream */
