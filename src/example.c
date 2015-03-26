@@ -39,6 +39,11 @@ void cb_rgb(uvc_frame_t *frame, void *ptr) {
    * my_obj->my_func(bgr);
    */
 
+  //printf("RGB frame time: %9d.%06d\n", frame->capture_time.tv_sec, frame->capture_time.tv_usec);
+  uint64_t scr;
+  memcpy(&scr, &frame->capture_time, sizeof(scr));
+  //printf("RGB frame time: %lu\n", scr);
+  
   /* Use opencv.highgui to display the image: */
   IplImage* cvImg;
     cvImg = cvCreateImageHeader(
@@ -70,7 +75,7 @@ uvc_error_t uvc_yuyv2gray16(uvc_frame_t *in) {
 
 
 //Callback for the 16-bit gray depthmap
-void cb_gray(uvc_frame_t *frame, void *ptr) {
+void cb_gray16(uvc_frame_t *frame, void *ptr) {
   uvc_frame_t *gray;
   uvc_error_t ret;
 
@@ -78,6 +83,24 @@ void cb_gray(uvc_frame_t *frame, void *ptr) {
 
   gray->frame_format = UVC_FRAME_FORMAT_GRAY16;
 
+  int maxVal = 0;
+  uint16_t *grayData = (uint16_t*) gray->data; 
+  uint16_t theVal;
+  int i;
+  /* for (i = 0; i<gray->height*gray->width; i++) */
+  /*   { */
+  /*     theVal = grayData[i]; */
+  /*     if (theVal > maxVal) */
+  /* 	maxVal = theVal; */
+  /*   } */
+
+  //maxVal = grayData[240+480*320];
+  //printf("Center depth: %1.3f\n", ((float)maxVal)/1000);
+  //printf("Depth frame time: %d.%06d\n", frame->capture_time.tv_sec, frame->capture_time.tv_usec);
+  uint64_t scr;
+  memcpy(&scr, &frame->capture_time, sizeof(scr));
+  //printf("Depth frame time: %lu\n", scr);
+  
   /* Use opencv.highgui to display the image: */
   IplImage* cvImg;
     cvImg = cvCreateImageHeader(
@@ -92,6 +115,75 @@ void cb_gray(uvc_frame_t *frame, void *ptr) {
     cvWaitKey(10);
    
     cvReleaseImageHeader(&cvImg);
+}
+
+//Callback for the 8-bit gray IR image
+void cb_gray8(uvc_frame_t *frame, void *ptr) {
+  uvc_frame_t *gray;
+  uvc_error_t ret;
+
+  gray = frame;
+
+  gray->frame_format = UVC_FRAME_FORMAT_INVI;
+  uint64_t scr;
+  memcpy(&scr, &frame->capture_time, sizeof(scr));
+  //printf("IR frame time: %lu\n", scr);
+  
+  /* Use opencv.highgui to display the image: */
+  IplImage* cvImg;
+    cvImg = cvCreateImageHeader(
+        cvSize(gray->width, gray->height),
+        IPL_DEPTH_8U,
+        1);
+   
+    cvSetData(cvImg, gray->data, gray->width * 1); 
+   
+    cvNamedWindow("Test Depth", CV_WINDOW_AUTOSIZE);
+    cvShowImage("Test Depth", cvImg);
+    cvWaitKey(10);
+   
+    cvReleaseImageHeader(&cvImg);
+}
+
+//Callback for 24-bit image format
+void cb_24(uvc_frame_t *frame, void *ptr) {
+  uvc_frame_t *gray;
+  uvc_error_t ret;
+  uvc_frame_t *plane;
+  plane = uvc_allocate_frame(frame->width * frame->height);
+  plane->width = frame->width;
+  plane->height = frame->height;
+  gray = frame;
+
+  gray->frame_format = UVC_FRAME_FORMAT_INRI;
+  uint64_t scr;
+  memcpy(&scr, &frame->capture_time, sizeof(scr));
+  //printf("IR frame time: %lu\n", scr);
+
+  int i,j;
+  j = 0;
+  uint8_t *planeData = (uint8_t*)plane->data;
+  uint8_t *frameData = (uint8_t*)frame->data;
+  for (i=0; i < frame->width*frame->height*3; i+= 3)
+    {
+      planeData[j] = frameData[i];
+      j++;
+    }
+  /* Use opencv.highgui to display the image: */
+  IplImage* cvImg;
+    cvImg = cvCreateImageHeader(
+        cvSize(plane->width, plane->height),
+        IPL_DEPTH_8U,
+        1);
+   
+    cvSetData(cvImg, plane->data, plane->width * 1); 
+   
+    cvNamedWindow("Test Depth", CV_WINDOW_AUTOSIZE);
+    cvShowImage("Test Depth", cvImg);
+    cvWaitKey(10);
+   
+    cvReleaseImageHeader(&cvImg);
+    uvc_free_frame(plane);
 }
 
 int depthCount=0;
@@ -171,7 +263,7 @@ int main(int argc, char **argv) {
 
       
       printf("Opening depth camera\n");
-      res = uvc_open2(dev, &devh_d, 1); //Try to open camera 1  (RGB)
+      res = uvc_open2(dev, &devh_d, 1); //Try to open camera 1  (depth)
       uvc_print_diag(devh_d, stderr);
       
       
@@ -187,12 +279,14 @@ int main(int argc, char **argv) {
       /* Try to negotiate a 640x480 30 fps YUYV stream profile */
       res = uvc_get_stream_ctrl_format_size(
           devh_d, &ctrl_d, /* result stored in ctrl */
-          UVC_FRAME_FORMAT_YUYV, /* YUV 422, aka YUV 4:2:2. try _COMPRESSED */
+          UVC_FRAME_FORMAT_INVI, /* YUV 422, aka YUV 4:2:2. try _COMPRESSED */
+	  //UVC_FRAME_FORMAT_YUYV,
           640, 480, 30 /* width, height, fps */
       );
 
       /* Print out the result */
       uvc_print_stream_ctrl(&ctrl_d, stderr);
+      uvc_print_diag(devh_d, NULL);    
 
       if (res < 0) {
         uvc_perror(res, "get_mode"); /* device doesn't provide a matching stream */
@@ -203,9 +297,8 @@ int main(int argc, char **argv) {
 	
 
         res = uvc_start_streaming(devh_rgb, &ctrl_rgb, cb_rgb, 12345, 0);
-
-
-	res = uvc_start_streaming(devh_d, &ctrl_d, cb_gray_file, 12345, 0);
+	res = uvc_start_streaming(devh_d, &ctrl_d, cb_gray8, 12345, 0);
+	//res = uvc_start_streaming(devh_d, &ctrl_d, cb_24, 12345, 0);
 
         if (res < 0) {
           uvc_perror(res, "start_streaming"); /* unable to start stream */
@@ -214,7 +307,7 @@ int main(int argc, char **argv) {
 
           //uvc_set_ae_mode(devh, 1); /* e.g., turn on auto exposure */
 
-          sleep(30); /* stream for 10 seconds */
+          sleep(300); /* stream for 10 seconds */
 
           /* End the stream. Blocks until last callback is serviced */
           uvc_stop_streaming(devh_rgb);

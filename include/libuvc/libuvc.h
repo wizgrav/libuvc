@@ -71,6 +71,12 @@ enum uvc_frame_format {
   UVC_FRAME_FORMAT_GRAY8,
   UVC_FRAME_FORMAT_GRAY16,
   UVC_FRAME_FORMAT_BY8,
+
+  UVC_FRAME_FORMAT_INVI, //IR
+  UVC_FRAME_FORMAT_RELI, //IR
+  UVC_FRAME_FORMAT_INVR, //Depth 
+  UVC_FRAME_FORMAT_INVZ, //Depth 
+  UVC_FRAME_FORMAT_INRI, //Depth (24 bit)
   /** Number of formats understood */
   UVC_FRAME_FORMAT_COUNT,
 };

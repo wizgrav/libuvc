@@ -109,7 +109,16 @@ struct format_table_entry *_get_format_entry(enum uvc_frame_format format) {
       {'Y',  '8',  '0',  '0', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
     FMT(UVC_FRAME_FORMAT_BY8,
       {'B',  'Y',  '8',  ' ', 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71})
-
+    FMT(UVC_FRAME_FORMAT_INVI,
+	{'I', 'N', 'V', 'I', 0xdb, 0x57, 0x49, 0x5e, 0x8e, 0x3f, 0xf4, 0x79, 0x53, 0x2b, 0x94, 0x6f})
+    FMT(UVC_FRAME_FORMAT_RELI,
+	{'R', 'E', 'L', 'I', 0x14, 0x13, 0x43, 0xf9, 0xa7, 0x5a, 0xee, 0x6b, 0xbf, 0x01, 0x2e, 0x23})
+    FMT(UVC_FRAME_FORMAT_INVR,
+	{'I', 'N', 'V', 'R', 0x90, 0x2d, 0x58, 0x4a, 0x92, 0x0b, 0x77, 0x3f, 0x1f, 0x2c, 0x55, 0x6b}) 
+      FMT(UVC_FRAME_FORMAT_INVZ,
+	{'I', 'N', 'V', 'Z', 0x90, 0x2d, 0x58, 0x4a, 0x92, 0x0b, 0x77, 0x3f, 0x1f, 0x2c, 0x55, 0x6b})
+      FMT(UVC_FRAME_FORMAT_INRI,
+	  {'I','N','R','I', 0x90, 0x2d, 0x58, 0x4a, 0x92, 0x0b, 0x77, 0x3f, 0x1f, 0x2c, 0x55, 0x6b}) 
     ABS_FMT(UVC_FRAME_FORMAT_COMPRESSED, 1,
       {UVC_FRAME_FORMAT_MJPEG})
     FMT(UVC_FRAME_FORMAT_MJPEG,
@@ -518,6 +527,8 @@ void _uvc_process_payload(uvc_stream_handle_t *strmh, uint8_t *payload, size_t p
     else
       data_len = payload_len - header_len;
   }
+  
+  uint64_t scr;
 
   if (header_len < 2) {
     header_info = 0;
@@ -531,7 +542,24 @@ void _uvc_process_payload(uvc_stream_handle_t *strmh, uint8_t *payload, size_t p
       UVC_DEBUG("bad packet: error bit set");
       return;
     }
+    /*    
+    if (header_info & 0x04) {
+      UVC_DEBUG("PTS bit set");
+      uint32_t *pts = (uint32_t*) &payload[2];
+      printf("fmt: %d PTS: %u\n", strmh->frame_format, pts);
+      //return;
+    }
+    
+    */
 
+    if (header_info & 0x08) {
+      //UVC_DEBUG("SCR bit set");  
+      scr = 0;
+      memcpy(&scr, &payload[6], 6);
+      //printf("fmt: %d scr: %lu\n", strmh->frame_format, scr);
+      //return;
+      }
+    
     if (strmh->fid != (header_info & 1) && strmh->got_bytes != 0) {
       /* The frame ID bit was flipped, but we have image data sitting
          around from prior transfers. This means the camera didn't send
@@ -559,6 +587,12 @@ void _uvc_process_payload(uvc_stream_handle_t *strmh, uint8_t *payload, size_t p
 
     if (header_info & (1 << 1)) {
       /* The EOF bit is set, so publish the complete frame */
+
+      //Populate frame's capture_time field
+      //gettimeofday(&strmh->frame.capture_time, NULL);
+
+      //Put the SCR data into the capture_time field
+      memcpy(&strmh->frame.capture_time, &scr, sizeof(scr));
       _uvc_swap_buffers(strmh);
     }
   }
