@@ -22,15 +22,7 @@ find_library(LIBUSB_LIBRARY_NAMES usb-1.0
 find_path(LIBUSB_INCLUDE_DIR libusb-1.0/libusb.h
 	PATHS /opt/local/include)
 
-# Try to find JPEG using a module or pkg-config. If that doesn't work, search for the header.
-find_package(jpeg QUIET)
-if(NOT JPEG_FOUND)
-  find_path(JPEG_INCLUDE_DIR jpeglib.h)
-  if(JPEG_INCLUDE_DIR)
-    set(JPEG_FOUND ON)
-    set(JPEG_LIBRARIES -ljpeg)
-  endif()
-endif()
+
 
 SET(CMAKE_C_FLAGS_DEBUG "-g -DUVC_DEBUGGING")
 
@@ -41,23 +33,14 @@ SET(SOURCES src/ctrl.c src/ctrl-gen.c src/device.c src/diag.c
            src/frame.c src/init.c src/stream.c
            src/misc.c)
 
-find_package(OpenCV)
 
 include_directories(
   ${libuvc_SOURCE_DIR}/include
   ${libuvc_BINARY_DIR}/include
   ${LIBUSB_INCLUDE_DIR}
-  ${OPENCV_INCLUDE_DIR}
 )
 
-if(JPEG_FOUND)
-  message(STATUS "Building libuvc with JPEG support.")
-  include_directories(${JPEG_INCLUDE_DIR})
-  SET(LIBUVC_HAS_JPEG TRUE)
-  SET(SOURCES ${SOURCES} src/frame-mjpeg.c)
-else()
-  message(WARNING "JPEG not found. libuvc will not support JPEG decoding.")
-endif()
+
 
 if(${CMAKE_BUILD_TARGET} MATCHES "Shared")
   add_library(uvc SHARED ${SOURCES})
@@ -73,16 +56,9 @@ configure_file(include/libuvc/libuvc_config.h.in
 set_target_properties(uvc PROPERTIES
   PUBLIC_HEADER "include/libuvc/libuvc.h;${libuvc_BINARY_DIR}/include/libuvc/libuvc_config.h" )
 
-if(JPEG_FOUND)
-  target_link_libraries (uvc ${JPEG_LIBRARIES})
-endif(JPEG_FOUND)
 
 target_link_libraries(uvc ${LIBUSB_LIBRARY_NAMES})
 
-add_executable(example src/example.c)
-target_link_libraries(example uvc ${LIBUSB_LIBRARY_NAMES} opencv_highgui
-  opencv_imgproc
-  opencv_core	)
 
 install(TARGETS uvc
   EXPORT libuvcTargets
